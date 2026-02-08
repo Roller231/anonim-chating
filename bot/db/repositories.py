@@ -223,6 +223,17 @@ class UserRepo:
             )
         await self.session.execute(stmt)
 
+    async def deactivate_expired_vip(self) -> int:
+        """Set is_vip=False for users whose vip_until has passed. Returns count."""
+        now = datetime.now()
+        stmt = (
+            update(User)
+            .where(User.is_vip == True, User.vip_until != None, User.vip_until <= now)
+            .values(is_vip=False)
+        )
+        result = await self.session.execute(stmt)
+        return result.rowcount
+
     async def activate_vip(self, telegram_id: int, days: int) -> datetime:
         """Activate or extend VIP. Returns new vip_until datetime."""
         from datetime import timedelta

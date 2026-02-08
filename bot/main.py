@@ -52,12 +52,29 @@ async def main():
 
     logger.info("Bot starting...")
 
+    async def vip_cleanup_task():
+        """Background task: deactivate expired VIP every 60s."""
+        from bot.db.repositories import UserRepo as _UR
+        while True:
+            await asyncio.sleep(60)
+            try:
+                async with session_pool() as s:
+                    count = await _UR(s).deactivate_expired_vip()
+                    await s.commit()
+                    if count:
+                        logger.info(f"Deactivated {count} expired VIP subscription(s)")
+            except Exception as e:
+                logger.error(f"VIP cleanup error: {e}")
+
+    cleanup = asyncio.create_task(vip_cleanup_task())
+
     try:
         await dp.start_polling(
             bot,
             allowed_updates=dp.resolve_used_update_types(),
         )
     finally:
+        cleanup.cancel()
         await engine.dispose()
         await bot.session.close()
 
