@@ -10,11 +10,12 @@ services:
       MYSQL_DATABASE: anonim_chat
       MYSQL_CHARSET: utf8mb4
       MYSQL_COLLATION: utf8mb4_unicode_ci
+      TZ: Europe/Moscow
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-time-zone=+03:00
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p141722A!"]
       interval: 5s
@@ -47,6 +48,7 @@ services:
       DB_USER: root
       DB_PASSWORD: "141722A!"
       DB_NAME: anonim_chat
+      TZ: Europe/Moscow
     depends_on:
       mysql:
         condition: service_healthy
