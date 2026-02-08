@@ -7,10 +7,12 @@ from bot.handlers.search import router as search_router
 from bot.handlers.referral import router as referral_router
 from bot.handlers.top import router as top_router
 from bot.handlers.payment import router as payment_router
+from bot.handlers.admin import router as admin_router
 
 
 def get_all_routers() -> list[Router]:
     return [
+        admin_router,
         payment_router,
         start_router,
         menu_router,

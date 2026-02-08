@@ -41,6 +41,14 @@ class UserRepo:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_all_telegram_ids(self, exclude_vip: bool = False) -> list[int]:
+        """Get all registered user telegram_ids. If exclude_vip, skip VIP users."""
+        stmt = select(User.telegram_id).where(User.is_registered == True)
+        if exclude_vip:
+            stmt = stmt.where(User.is_vip == False)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def update_profile(
         self,
         telegram_id: int,
