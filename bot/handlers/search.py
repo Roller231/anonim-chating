@@ -6,29 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.db.repositories import UserRepo
 from bot.db.models import GenderEnum
-from bot.i18n import T
 from bot.keyboards.inline import pref_gender_keyboard, pref_age_keyboard, pref_country_keyboard
 from bot.states.registration import SearchSettingsStates
 
 router = Router()
-
-
-def _pref_summary(data: dict, country_val: str) -> str:
-    lines = []
-    if data.get("pref_gender"):
-        g = T["gender_male"] if data["pref_gender"] == "male" else T["gender_female"]
-        lines.append(f"{T['pref_gender_label']}: {g}")
-    else:
-        lines.append(f"{T['pref_gender_label']}: {T['any_label']}")
-    if data.get("pref_age_min"):
-        lines.append(f"{T['pref_age_label']}: {data['pref_age_min']}-{data['pref_age_max']}")
-    else:
-        lines.append(f"{T['pref_age_label']}: {T['any_age_label']}")
-    if country_val != "any":
-        lines.append(f"{T['pref_country_label']}: {country_val}")
-    else:
-        lines.append(f"{T['pref_country_label']}: {T['any_f_label']}")
-    return "\n".join(lines)
 
 
 @router.message(Command("search"))
@@ -40,15 +21,40 @@ async def cmd_search(
     user_repo = UserRepo(session)
     user = await user_repo.get_by_telegram_id(message.from_user.id)
     if not user or not user.is_registered:
-        await message.answer(T["register_first"])
+        await message.answer("❌ Сначала зарегистрируйтесь: /start")
         return
 
     if not user.is_vip:
-        await message.answer(T["search_vip_only"])
+        await message.answer(
+            "🔒 Команда /search доступна только VIP пользователям!\n\n"
+            "👑 Купите VIP подписку, чтобы настраивать поиск по возрасту и стране.\n"
+            "Нажмите «VIP статус 🔥» для покупки."
+        )
         return
 
+    current_prefs = []
+    if user.pref_gender:
+        g = "👨 Мужской" if user.pref_gender.value == "male" else "👩 Женский"
+        current_prefs.append(f"👫 Пол: {g}")
+    else:
+        current_prefs.append("👫 Пол: 🔀 Любой")
+
+    if user.pref_age_min and user.pref_age_max:
+        current_prefs.append(f"🔞 Возраст: {user.pref_age_min}-{user.pref_age_max}")
+    else:
+        current_prefs.append("🔞 Возраст: 🔀 Любой")
+
+    if user.pref_country:
+        current_prefs.append(f"🌎 Страна: {user.pref_country}")
+    else:
+        current_prefs.append("🌎 Страна: 🔀 Любая")
+
+    prefs_text = "\n".join(current_prefs)
+
     await message.answer(
-        T["search_settings_title"] + "\n\n" + T["search_choose_gender"],
+        f"⚙️ Настройки поиска\n\n"
+        f"Текущие предпочтения:\n{prefs_text}\n\n"
+        f"👫 Выберите предпочитаемый пол собеседника:",
         reply_markup=pref_gender_keyboard(),
     )
     await state.set_state(SearchSettingsStates.waiting_pref_gender)
@@ -63,7 +69,7 @@ async def process_pref_gender(callback: CallbackQuery, state: FSMContext, sessio
         await state.update_data(pref_gender=value)
 
     await callback.message.edit_text(
-        T["search_choose_age"],
+        "🔞 Выберите предпочитаемый возраст собеседника:",
         reply_markup=pref_age_keyboard(),
     )
     await state.set_state(SearchSettingsStates.waiting_pref_age)
@@ -79,7 +85,7 @@ async def process_pref_age(callback: CallbackQuery, state: FSMContext, session: 
         await state.update_data(pref_age_min=int(value[1]), pref_age_max=int(value[2]))
 
     await callback.message.edit_text(
-        T["search_choose_country"],
+        "🌎 Выберите предпочитаемую страну собеседника:",
         reply_markup=pref_country_keyboard(),
     )
     await state.set_state(SearchSettingsStates.waiting_pref_country)
@@ -107,6 +113,26 @@ async def process_pref_country(callback: CallbackQuery, state: FSMContext, sessi
 
     await state.clear()
 
-    summary = _pref_summary(data, value)
-    await callback.message.edit_text(T["search_saved"].format(summary=summary))
-    await callback.answer(T["saved"])
+    summary = []
+    if data.get("pref_gender"):
+        g = "👨 Мужской" if data["pref_gender"] == "male" else "👩 Женский"
+        summary.append(f"👫 Пол: {g}")
+    else:
+        summary.append("👫 Пол: 🔀 Любой")
+
+    if data.get("pref_age_min"):
+        summary.append(f"🔞 Возраст: {data['pref_age_min']}-{data['pref_age_max']}")
+    else:
+        summary.append("🔞 Возраст: 🔀 Любой")
+
+    if value != "any":
+        summary.append(f"🌎 Страна: {value}")
+    else:
+        summary.append("🌎 Страна: 🔀 Любая")
+
+    await callback.message.edit_text(
+        f"✅ Настройки поиска сохранены!\n\n"
+        + "\n".join(summary)
+        + "\n\nНажмите /start чтобы начать поиск 🔍"
+    )
+    await callback.answer("✅ Сохранено!")

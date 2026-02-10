@@ -8,7 +8,6 @@ from aiogram.types import Message, InputMediaPhoto, InputMediaVideo
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.db.repositories import UserRepo
-from bot.i18n import LANG
 from bot.states.registration import BroadcastStates
 
 router = Router()
@@ -120,7 +119,7 @@ async def _process_album_delayed(
     await state.clear()
 
     user_repo = UserRepo(session)
-    user_ids = await user_repo.get_all_telegram_ids(exclude_vip=exclude_vip, locale=LANG)
+    user_ids = await user_repo.get_all_telegram_ids(exclude_vip=exclude_vip)
 
     success, fail = 0, 0
     for uid in user_ids:
@@ -131,7 +130,7 @@ async def _process_album_delayed(
             fail += 1
         await asyncio.sleep(0.05)  # rate limit
 
-    label = f"{LANG}/no-vip" if exclude_vip else f"{LANG}/all"
+    label = "без VIP" if exclude_vip else "всем"
     await trigger_msg.answer(f"✅ Альбом отправлен ({label}):\n📨 {success} доставлено, ❌ {fail} ошибок")
     logger.info(f"Broadcast album ({label}): {success} ok, {fail} fail")
 
@@ -148,7 +147,7 @@ async def broadcast_single(message: Message, state: FSMContext, session: AsyncSe
     await state.clear()
 
     user_repo = UserRepo(session)
-    user_ids = await user_repo.get_all_telegram_ids(exclude_vip=exclude_vip, locale=LANG)
+    user_ids = await user_repo.get_all_telegram_ids(exclude_vip=exclude_vip)
 
     success, fail = 0, 0
     for uid in user_ids:
@@ -159,7 +158,7 @@ async def broadcast_single(message: Message, state: FSMContext, session: AsyncSe
             fail += 1
         await asyncio.sleep(0.05)
 
-    label = f"{LANG}/no-vip" if exclude_vip else f"{LANG}/all"
+    label = "без VIP" if exclude_vip else "всем"
     await message.answer(f"✅ Рассылка завершена ({label}):\n📨 {success} доставлено, ❌ {fail} ошибок")
     logger.info(f"Broadcast single ({label}): {success} ok, {fail} fail")
 

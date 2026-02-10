@@ -4,9 +4,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bot.db.repositories import UserRepo, ReferralRepo
+from bot.db.repositories import UserRepo, ReferralRepo, InterestRepo
 from bot.db.models import GenderEnum
-from bot.i18n import T, LANG
 from bot.keyboards.inline import (
     gender_keyboard,
     age_keyboard,
@@ -20,8 +19,10 @@ from bot.services.chat import ChatService
 router = Router()
 
 
-def _gender_label(val: str) -> str:
-    return T["gender_male_short"] if val == "male" else T["gender_female_short"]
+async def _get_interest_options(session: AsyncSession) -> list[tuple[str, str]]:
+    repo = InterestRepo(session)
+    options = await repo.get_all_active()
+    return [(o.name, o.emoji) for o in options]
 
 
 @router.message(CommandStart())
@@ -56,7 +57,12 @@ async def cmd_start(
 
     if not user.is_registered:
         await state.clear()
-        await message.answer(T["welcome"], reply_markup=gender_keyboard())
+        await message.answer(
+            "👋 Добро пожаловать в Анонимный чат!\n\n"
+            "Давайте заполним вашу анкету.\n\n"
+            "👫 Выберите ваш пол:",
+            reply_markup=gender_keyboard(),
+        )
         await state.set_state(RegistrationStates.waiting_gender)
         return
 
@@ -78,12 +84,16 @@ async def process_gender(callback: CallbackQuery, state: FSMContext, session: As
         gender = GenderEnum.MALE if gender_val == "male" else GenderEnum.FEMALE
         await user_repo.update_profile(telegram_id=callback.from_user.id, gender=gender)
         await state.clear()
-        await callback.message.edit_text(T["gender_changed"].format(g=_gender_label(gender_val)))
-        await callback.answer(T["saved"])
+        g = "Мужской" if gender_val == "male" else "Женский"
+        await callback.message.edit_text(f"✅ Пол изменён на: {g}")
+        await callback.answer("✅ Сохранено!")
         return
 
     await state.update_data(gender=gender_val)
-    await callback.message.edit_text(T["choose_age"], reply_markup=age_keyboard())
+    await callback.message.edit_text(
+        "🔞 Выберите ваш возраст:",
+        reply_markup=age_keyboard(),
+    )
     await state.set_state(RegistrationStates.waiting_age)
     await callback.answer()
 
@@ -100,12 +110,15 @@ async def process_age(callback: CallbackQuery, state: FSMContext, session: Async
             telegram_id=callback.from_user.id, age_min=age_min, age_max=age_max
         )
         await state.clear()
-        await callback.message.edit_text(T["age_changed"].format(age_min=age_min, age_max=age_max))
-        await callback.answer(T["saved"])
+        await callback.message.edit_text(f"✅ Возраст изменён на: {age_min}-{age_max}")
+        await callback.answer("✅ Сохранено!")
         return
 
     await state.update_data(age_min=age_min, age_max=age_max)
-    await callback.message.edit_text(T["choose_country"], reply_markup=country_keyboard())
+    await callback.message.edit_text(
+        "🌎 Выберите вашу страну:",
+        reply_markup=country_keyboard(),
+    )
     await state.set_state(RegistrationStates.waiting_country)
     await callback.answer()
 
@@ -119,14 +132,15 @@ async def process_country(callback: CallbackQuery, state: FSMContext, session: A
         user_repo = UserRepo(session)
         await user_repo.update_profile(telegram_id=callback.from_user.id, country=country)
         await state.clear()
-        await callback.message.edit_text(T["country_changed"].format(country=country))
-        await callback.answer(T["saved"])
+        await callback.message.edit_text(f"✅ Страна изменена на: {country}")
+        await callback.answer("✅ Сохранено!")
         return
 
     await state.update_data(country=country)
+    options = await _get_interest_options(session)
     await callback.message.edit_text(
-        T["choose_interests"],
-        reply_markup=interests_keyboard(),
+        "🎯 Выберите ваши интересы (можно несколько), затем нажмите ✅ Готово:",
+        reply_markup=interests_keyboard(options),
     )
     await state.update_data(interests=[])
     await state.set_state(RegistrationStates.waiting_interests)
@@ -148,11 +162,10 @@ async def process_interest(callback: CallbackQuery, state: FSMContext, session: 
                 await user_repo.set_interests(user.id, interests)
             await state.clear()
             await callback.message.edit_text(
-                T["interests_updated"].format(
-                    interests=", ".join(interests) if interests else T["interests_none"]
-                )
+                f"✅ Интересы обновлены!\n\n"
+                f"🎯 {', '.join(interests) if interests else 'Не указаны'}"
             )
-            await callback.answer(T["saved"])
+            await callback.answer("✅ Сохранено!")
             return
 
         gender = GenderEnum.MALE if data["gender"] == "male" else GenderEnum.FEMALE
@@ -164,7 +177,6 @@ async def process_interest(callback: CallbackQuery, state: FSMContext, session: 
             age_max=data["age_max"],
             country=data["country"],
             is_registered=True,
-            locale=LANG,
             username=callback.from_user.username,
             first_name=callback.from_user.first_name,
         )
@@ -175,34 +187,35 @@ async def process_interest(callback: CallbackQuery, state: FSMContext, session: 
 
         await state.clear()
         await callback.message.edit_text(
-            T["reg_complete"].format(
-                tid=callback.from_user.id,
-                gender=_gender_label(data["gender"]),
-                age_min=data["age_min"],
-                age_max=data["age_max"],
-                country=data["country"],
-                interests=", ".join(interests) if interests else T["interests_none"],
-            )
+            "✅ Регистрация завершена!\n\n"
+            f"#️⃣ ID — {callback.from_user.id}\n"
+            f"👫 Пол — {'Мужской' if data['gender'] == 'male' else 'Женский'}\n"
+            f"🔞 Возраст — от {data['age_min']} до {data['age_max']}\n"
+            f"🌎 Страна — {data['country']}\n"
+            f"🎯 Интересы — {', '.join(interests) if interests else 'Не указаны'}\n\n"
+            "Используйте кнопки меню для навигации 👇"
         )
         await callback.message.answer(
-            T["start_search_btn"],
+            "🔍 Нажмите кнопку ниже чтобы начать поиск!",
             reply_markup=main_menu_keyboard(),
         )
-        await callback.answer(T["reg_complete_btn"])
+        await callback.answer("✅ Регистрация завершена!")
         return
 
     data = await state.get_data()
     interests = data.get("interests", [])
     if value in interests:
         interests.remove(value)
-        await callback.answer(T["interest_removed"].format(name=value))
+        await callback.answer(f"❌ {value} убран")
     else:
         interests.append(value)
-        await callback.answer(T["interest_added"].format(name=value))
+        await callback.answer(f"✅ {value} добавлен")
     await state.update_data(interests=interests)
 
-    selected = ", ".join(interests) if interests else T["nothing_selected"]
+    options = await _get_interest_options(session)
+    selected = ", ".join(interests) if interests else "ничего не выбрано"
     await callback.message.edit_text(
-        T["choose_interests"] + "\n\n" + T["choose_interests_selected"].format(selected=selected),
-        reply_markup=interests_keyboard(selected=interests),
+        f"🎯 Выберите ваши интересы (можно несколько), затем нажмите ✅ Готово:\n\n"
+        f"Выбрано: {selected}",
+        reply_markup=interests_keyboard(options, interests),
     )

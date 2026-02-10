@@ -36,32 +36,13 @@ services:
       mysql:
         condition: service_healthy
 
-  bot-ru:
+  bot:
     build: .
-    container_name: anonim-chat-bot-ru
+    container_name: anonim-chat-bot
     restart: always
     env_file:
       - .env
     environment:
-      BOT_LANG: ru
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: root
-      DB_PASSWORD: "141722A!"
-      DB_NAME: anonim_chat
-      TZ: Europe/Moscow
-    depends_on:
-      mysql:
-        condition: service_healthy
-
-  bot-en:
-    build: .
-    container_name: anonim-chat-bot-en
-    restart: always
-    environment:
-      BOT_TOKEN: "8375919305:AAHOF3kHhffa7F-0VAOes9-03lx3vyBZQMM"
-      BOT_USERNAME: "en_anonim_chat_bot"
-      BOT_LANG: en
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: root

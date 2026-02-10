@@ -3,7 +3,6 @@ from aiogram.types import PreCheckoutQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.db.repositories import UserRepo
-from bot.i18n import T
 
 router = Router()
 
@@ -30,5 +29,7 @@ async def successful_payment(message: Message, session: AsyncSession):
     await session.commit()
 
     await message.answer(
-        T["vip_buy_success"].format(until=new_until.strftime("%d.%m.%Y %H:%M"))
+        f"✅ Оплата прошла успешно!\n\n"
+        f"👑 VIP статус активирован до {new_until.strftime('%d.%m.%Y %H:%M')} UTC\n\n"
+        f"Наслаждайтесь преимуществами VIP! 🎉"
     )

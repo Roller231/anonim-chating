@@ -71,9 +71,6 @@ class User(Base):
     pref_age_max: Mapped[int | None] = mapped_column(Integer, nullable=True)
     pref_country: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    # Bot locale (ru / en)
-    locale: Mapped[str] = mapped_column(String(5), default="ru", server_default="ru")
-
     # Daily gender search tracking (non-VIP limit)
     gender_searches_today: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     gender_searches_date: Mapped[date | None] = mapped_column(Date, nullable=True)
