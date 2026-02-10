@@ -41,11 +41,13 @@ class UserRepo:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_all_telegram_ids(self, exclude_vip: bool = False) -> list[int]:
-        """Get all registered user telegram_ids. If exclude_vip, skip VIP users."""
+    async def get_all_telegram_ids(self, exclude_vip: bool = False, locale: str | None = None) -> list[int]:
+        """Get all registered user telegram_ids. If exclude_vip, skip VIP users. If locale, filter by bot locale."""
         stmt = select(User.telegram_id).where(User.is_registered == True)
         if exclude_vip:
             stmt = stmt.where(User.is_vip == False)
+        if locale:
+            stmt = stmt.where(User.locale == locale)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -59,6 +61,7 @@ class UserRepo:
         is_registered=None,
         username=None,
         first_name=None,
+        locale=None,
     ) -> None:
         values = {}
         if gender is not None:
@@ -75,6 +78,8 @@ class UserRepo:
             values["username"] = username
         if first_name is not None:
             values["first_name"] = first_name
+        if locale is not None:
+            values["locale"] = locale
         if values:
             stmt = update(User).where(User.telegram_id == telegram_id).values(**values)
             await self.session.execute(stmt)

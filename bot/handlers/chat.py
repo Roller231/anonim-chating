@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.db.repositories import UserRepo, ChatRepo, RatingRepo
 from bot.db.models import RatingValue
+from bot.i18n import T
 from bot.keyboards.inline import rating_keyboard
 from bot.services.chat import ChatService
 
@@ -39,9 +40,7 @@ async def _check_media_allowed(message: Message, session: AsyncSession) -> bool:
         oldest = _media_timestamps[uid][0]
         wait = int(MEDIA_WINDOW_SECONDS - (now - oldest)) + 1
         await message.answer(
-            f"⏳ Лимит медиа: {MEDIA_LIMIT} шт. за {MEDIA_WINDOW_SECONDS} сек.\n"
-            f"Подождите {wait} сек.\n"
-            f"👑 VIP пользователи отправляют медиа без ограничений!"
+            T["media_limit"].format(limit=MEDIA_LIMIT, window=MEDIA_WINDOW_SECONDS, wait=wait)
         )
         return False
 
@@ -73,7 +72,7 @@ async def cmd_next(
     user_repo = UserRepo(session)
     user = await user_repo.get_by_telegram_id(message.from_user.id)
     if not user or not user.is_registered:
-        await message.answer("❌ Сначала зарегистрируйтесь: /start")
+        await message.answer(T["register_first"])
         return
 
     chat_service = ChatService(bot, session)
@@ -91,20 +90,20 @@ async def cmd_lnk(
     partner_id = await chat_service.get_active_partner(message.from_user.id)
 
     if not partner_id:
-        await message.answer("❌ У вас нет активного чата.")
+        await message.answer(T["no_active_chat"])
         return
 
     username = message.from_user.username
     if username:
-        link = f"👤 Собеседник отправил вам ссылку на свой профиль:\n👉 @{username}"
+        link = f"👤 @{username}"
     else:
-        link = f"👤 Собеседник отправил вам ссылку на свой профиль:\n👉 tg://user?id={message.from_user.id}"
+        link = f"👤 tg://user?id={message.from_user.id}"
 
     try:
         await bot.send_message(partner_id, link)
-        await message.answer("✅ Ссылка на ваш профиль отправлена собеседнику!")
+        await message.answer("✅")
     except Exception:
-        await message.answer("❌ Не удалось отправить ссылку.")
+        await message.answer(T["msg_not_delivered"])
 
 
 # --- Rating callback ---
@@ -119,7 +118,7 @@ async def process_rating(
     action = parts[2]
 
     if action == "skip":
-        await callback.message.edit_text("⏭ Вы пропустили оценку.")
+        await callback.message.edit_text(T["rate_skip"])
         await callback.answer()
         return
 
@@ -128,7 +127,7 @@ async def process_rating(
 
     already = await rating_repo.has_rated(chat_id, callback.from_user.id)
     if already:
-        await callback.answer("Вы уже оценили этого собеседника!", show_alert=True)
+        await callback.answer(T["already_rated"], show_alert=True)
         return
 
     from bot.db.models import Chat
@@ -148,7 +147,8 @@ async def process_rating(
     await user_repo.add_karma(partner_id, is_like=(action == "like"))
 
     emoji = "👍" if action == "like" else "👎"
-    await callback.message.edit_text(f"{emoji} Вы поставили {'лайк' if action == 'like' else 'дизлайк'} собеседнику.")
+    label = T["rate_like_label"] if action == "like" else T["rate_dislike_label"]
+    await callback.message.edit_text(T["rate_done"].format(emoji=emoji, label=label))
     await callback.answer()
 
 
@@ -164,15 +164,13 @@ async def relay_text_message(
     partner_id = await chat_service.relay_message(message.from_user.id, message.text)
 
     if partner_id is None:
-        await message.answer(
-            "💤 У вас нет активного чата.\nНажмите /start чтобы найти собеседника."
-        )
+        await message.answer(T["no_chat_idle"])
         return
 
     try:
         await bot.send_message(partner_id, message.text)
     except Exception:
-        await message.answer("❌ Не удалось доставить сообщение.")
+        await message.answer(T["msg_not_delivered"])
 
 
 @router.message(F.photo)
@@ -186,7 +184,7 @@ async def relay_photo(
     chat_service = ChatService(bot, session)
     partner_id = await chat_service.get_active_partner(message.from_user.id)
     if not partner_id:
-        await message.answer("💤 У вас нет активного чата.")
+        await message.answer(T["no_chat_idle"])
         return
     try:
         fid = message.photo[-1].file_id
@@ -196,7 +194,7 @@ async def relay_photo(
             content_type="photo", file_id=fid, caption=message.caption,
         )
     except Exception:
-        await message.answer("❌ Не удалось доставить фото.")
+        await message.answer(T["photo_fail"])
 
 
 @router.message(F.sticker)
@@ -210,7 +208,7 @@ async def relay_sticker(
     chat_service = ChatService(bot, session)
     partner_id = await chat_service.get_active_partner(message.from_user.id)
     if not partner_id:
-        await message.answer("💤 У вас нет активного чата.")
+        await message.answer(T["no_chat_idle"])
         return
     try:
         fid = message.sticker.file_id
@@ -220,7 +218,7 @@ async def relay_sticker(
             content_type="sticker", file_id=fid,
         )
     except Exception:
-        await message.answer("❌ Не удалось доставить стикер.")
+        await message.answer(T["sticker_fail"])
 
 
 @router.message(F.voice)
@@ -234,7 +232,7 @@ async def relay_voice(
     chat_service = ChatService(bot, session)
     partner_id = await chat_service.get_active_partner(message.from_user.id)
     if not partner_id:
-        await message.answer("💤 У вас нет активного чата.")
+        await message.answer(T["no_chat_idle"])
         return
     try:
         fid = message.voice.file_id
@@ -244,7 +242,7 @@ async def relay_voice(
             content_type="voice", file_id=fid,
         )
     except Exception:
-        await message.answer("❌ Не удалось доставить голосовое сообщение.")
+        await message.answer(T["voice_fail"])
 
 
 @router.message(F.video)
@@ -258,7 +256,7 @@ async def relay_video(
     chat_service = ChatService(bot, session)
     partner_id = await chat_service.get_active_partner(message.from_user.id)
     if not partner_id:
-        await message.answer("💤 У вас нет активного чата.")
+        await message.answer(T["no_chat_idle"])
         return
     try:
         fid = message.video.file_id
@@ -268,7 +266,7 @@ async def relay_video(
             content_type="video", file_id=fid, caption=message.caption,
         )
     except Exception:
-        await message.answer("❌ Не удалось доставить видео.")
+        await message.answer(T["video_fail"])
 
 
 @router.message(F.video_note)
@@ -282,7 +280,7 @@ async def relay_video_note(
     chat_service = ChatService(bot, session)
     partner_id = await chat_service.get_active_partner(message.from_user.id)
     if not partner_id:
-        await message.answer("💤 У вас нет активного чата.")
+        await message.answer(T["no_chat_idle"])
         return
     try:
         fid = message.video_note.file_id
@@ -292,7 +290,7 @@ async def relay_video_note(
             content_type="video_note", file_id=fid,
         )
     except Exception:
-        await message.answer("❌ Не удалось доставить видеосообщение.")
+        await message.answer(T["videonote_fail"])
 
 
 @router.message(F.document)
@@ -306,7 +304,7 @@ async def relay_document(
     chat_service = ChatService(bot, session)
     partner_id = await chat_service.get_active_partner(message.from_user.id)
     if not partner_id:
-        await message.answer("💤 У вас нет активного чата.")
+        await message.answer(T["no_chat_idle"])
         return
     try:
         fid = message.document.file_id
@@ -316,4 +314,4 @@ async def relay_document(
             content_type="document", file_id=fid, caption=message.caption,
         )
     except Exception:
-        await message.answer("❌ Не удалось доставить документ.")
+        await message.answer(T["doc_fail"])

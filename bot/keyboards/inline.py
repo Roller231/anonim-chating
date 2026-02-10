@@ -5,6 +5,8 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
 )
 
+from bot.i18n import T
+
 
 # ─── Main reply keyboard (under input field) ───
 
@@ -12,14 +14,14 @@ def main_menu_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
             [
-                KeyboardButton(text="Найти 👩"),
-                KeyboardButton(text="🎪 Рандом"),
-                KeyboardButton(text="Найти 🧑"),
+                KeyboardButton(text=T["btn_find_girl"]),
+                KeyboardButton(text=T["btn_random"]),
+                KeyboardButton(text=T["btn_find_boy"]),
             ],
             [
-                KeyboardButton(text="VIP статус 🔥"),
-                KeyboardButton(text="🏠 Комнаты"),
-                KeyboardButton(text="👤 Профиль"),
+                KeyboardButton(text=T["btn_vip"]),
+                KeyboardButton(text=T["btn_rooms"]),
+                KeyboardButton(text=T["btn_profile"]),
             ],
         ],
         resize_keyboard=True,
@@ -32,8 +34,8 @@ def main_menu_keyboard() -> ReplyKeyboardMarkup:
 def gender_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="👨 Мужской", callback_data="gender:male"),
-            InlineKeyboardButton(text="👩 Женский", callback_data="gender:female"),
+            InlineKeyboardButton(text=T["gender_male"], callback_data="gender:male"),
+            InlineKeyboardButton(text=T["gender_female"], callback_data="gender:female"),
         ]
     ])
 
@@ -41,7 +43,7 @@ def gender_keyboard() -> InlineKeyboardMarkup:
 def age_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="до 18", callback_data="age:0:17"),
+            InlineKeyboardButton(text=T["age_under_18"], callback_data="age:0:17"),
             InlineKeyboardButton(text="18-21", callback_data="age:18:21"),
         ],
         [
@@ -56,30 +58,25 @@ def age_keyboard() -> InlineKeyboardMarkup:
 
 
 def country_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="🇷🇺 Россия", callback_data="country:Россия"),
-            InlineKeyboardButton(text="🇺🇦 Украина", callback_data="country:Украина"),
-        ],
-        [
-            InlineKeyboardButton(text="🇧🇾 Беларусь", callback_data="country:Беларусь"),
-            InlineKeyboardButton(text="🇰🇿 Казахстан", callback_data="country:Казахстан"),
-        ],
-        [
-            InlineKeyboardButton(text="🇺🇿 Узбекистан", callback_data="country:Узбекистан"),
-            InlineKeyboardButton(text="🌍 Другая", callback_data="country:Другая"),
-        ],
-    ])
+    countries = T["countries"]
+    rows: list[list[InlineKeyboardButton]] = []
+    row: list[InlineKeyboardButton] = []
+    for label, value in countries:
+        row.append(InlineKeyboardButton(text=label, callback_data=f"country:{value}"))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def interests_keyboard(
-    options: list[tuple[str, str]],
+    options: list[tuple[str, str]] | None = None,
     selected: list[str] | None = None,
 ) -> InlineKeyboardMarkup:
-    """Build interests keyboard dynamically from DB options.
-    options: list of (name, emoji) tuples
-    selected: list of currently selected interest names
-    """
+    if options is None:
+        options = T["interests"]
     if selected is None:
         selected = []
     rows: list[list[InlineKeyboardButton]] = []
@@ -96,22 +93,22 @@ def interests_keyboard(
             row = []
     if row:
         rows.append(row)
-    rows.append([InlineKeyboardButton(text="✅ Готово", callback_data="interest:done")])
+    rows.append([InlineKeyboardButton(text=T["interests_done"], callback_data="interest:done")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def profile_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="� Изменить пол", callback_data="edit:gender"),
-            InlineKeyboardButton(text="🔞 Изменить возраст", callback_data="edit:age"),
+            InlineKeyboardButton(text=T["edit_gender"], callback_data="edit:gender"),
+            InlineKeyboardButton(text=T["edit_age"], callback_data="edit:age"),
         ],
         [
-            InlineKeyboardButton(text="🌎 Изменить страну", callback_data="edit:country"),
-            InlineKeyboardButton(text="🎯 Изменить интересы", callback_data="edit:interests"),
+            InlineKeyboardButton(text=T["edit_country"], callback_data="edit:country"),
+            InlineKeyboardButton(text=T["edit_interests"], callback_data="edit:interests"),
         ],
         [
-            InlineKeyboardButton(text="⚙️ Настройки поиска", callback_data="edit:search"),
+            InlineKeyboardButton(text=T["edit_search"], callback_data="edit:search"),
         ],
     ])
 
@@ -119,31 +116,31 @@ def profile_keyboard() -> InlineKeyboardMarkup:
 def rating_keyboard(chat_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="👍 Лайк", callback_data=f"rate:{chat_id}:like"),
-            InlineKeyboardButton(text="👎 Дизлайк", callback_data=f"rate:{chat_id}:dislike"),
+            InlineKeyboardButton(text=T["rate_like"], callback_data=f"rate:{chat_id}:like"),
+            InlineKeyboardButton(text=T["rate_dislike"], callback_data=f"rate:{chat_id}:dislike"),
         ],
         [
-            InlineKeyboardButton(text="⏭ Пропустить", callback_data=f"rate:{chat_id}:skip"),
+            InlineKeyboardButton(text=T["rate_skip"], callback_data=f"rate:{chat_id}:skip"),
         ],
     ])
 
 
 def top_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👁️ По карме", callback_data="top:karma")],
-        [InlineKeyboardButton(text="🎪 По рефералам", callback_data="top:referrals")],
-        [InlineKeyboardButton(text="📧 По активности", callback_data="top:activity")],
+        [InlineKeyboardButton(text=T["top_karma"], callback_data="top:karma")],
+        [InlineKeyboardButton(text=T["top_referrals"], callback_data="top:referrals")],
+        [InlineKeyboardButton(text=T["top_activity"], callback_data="top:activity")],
     ])
 
 
 def pref_gender_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="👨 Мужской", callback_data="pref_gender:male"),
-            InlineKeyboardButton(text="👩 Женский", callback_data="pref_gender:female"),
+            InlineKeyboardButton(text=T["gender_male"], callback_data="pref_gender:male"),
+            InlineKeyboardButton(text=T["gender_female"], callback_data="pref_gender:female"),
         ],
         [
-            InlineKeyboardButton(text="🔀 Любой", callback_data="pref_gender:any"),
+            InlineKeyboardButton(text=T["gender_any"], callback_data="pref_gender:any"),
         ],
     ])
 
@@ -151,7 +148,7 @@ def pref_gender_keyboard() -> InlineKeyboardMarkup:
 def pref_age_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="до 18", callback_data="pref_age:0:17"),
+            InlineKeyboardButton(text=T["age_under_18"], callback_data="pref_age:0:17"),
             InlineKeyboardButton(text="18-21", callback_data="pref_age:18:21"),
         ],
         [
@@ -163,39 +160,37 @@ def pref_age_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="40+", callback_data="pref_age:40:99"),
         ],
         [
-            InlineKeyboardButton(text="🔀 Любой", callback_data="pref_age:any"),
+            InlineKeyboardButton(text=T["age_any"], callback_data="pref_age:any"),
         ],
     ])
 
 
 def pref_country_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="🇷🇺 Россия", callback_data="pref_country:Россия"),
-            InlineKeyboardButton(text="🇺🇦 Украина", callback_data="pref_country:Украина"),
-        ],
-        [
-            InlineKeyboardButton(text="🇧🇾 Беларусь", callback_data="pref_country:Беларусь"),
-            InlineKeyboardButton(text="🇰🇿 Казахстан", callback_data="pref_country:Казахстан"),
-        ],
-        [
-            InlineKeyboardButton(text="🔀 Любая", callback_data="pref_country:any"),
-        ],
-    ])
+    countries = T["countries"]
+    rows: list[list[InlineKeyboardButton]] = []
+    row: list[InlineKeyboardButton] = []
+    for label, value in countries:
+        row.append(InlineKeyboardButton(text=label, callback_data=f"pref_country:{value}"))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([InlineKeyboardButton(text=T["country_any"], callback_data="pref_country:any")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def vip_plans_keyboard(
     plans: list[tuple[int, str, int, int, str | None, str]],
     ton_wallet: str | None = None,
 ) -> InlineKeyboardMarkup:
-    """plans: list of (id, name, price_stars, duration_days, discount_text, emoji)"""
     rows: list[list[InlineKeyboardButton]] = []
     for plan_id, name, price_stars, duration_days, discount, emoji in plans:
         discount_str = f" {discount}" if discount else ""
         text = f"{price_stars} ⭐ / {name}{discount_str} {emoji}"
         rows.append([InlineKeyboardButton(text=text, callback_data=f"vip_buy:{plan_id}")])
     rows.append([InlineKeyboardButton(
-        text="🎁 Получить VIP статус бесплатно",
+        text=T["vip_free_btn"],
         callback_data="vip_free",
     )])
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -204,7 +199,6 @@ def vip_plans_keyboard(
 def rooms_keyboard(
     rooms: list[tuple[int, str, str, str | None]],
 ) -> InlineKeyboardMarkup:
-    """rooms: list of (id, name, emoji, description)"""
     rows: list[list[InlineKeyboardButton]] = []
     for room_id, name, emoji, desc in rooms:
         rows.append([InlineKeyboardButton(
